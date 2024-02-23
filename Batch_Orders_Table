@@ -1,0 +1,68 @@
+/**PROBLEM STATEMENT**/
+
+/** Imagine a warehouse where the available items are stored as per different batches as indicated in the BATCH table.
+Customers can purchase multiple items in a single order as indicated in ORDERS table.
+
+Write an SQL query to determine items for each order are taken from which batch. 
+Assume that items are sequencially taken from each batch starting from the first batch. **/
+
+
+drop table if exists batch;
+drop table if exists orders;
+
+create table batch (batch_id varchar(10), quantity integer);
+create table orders (order_number varchar(10), quantity integer);
+
+
+insert into batch values ('B1', 5);
+insert into batch values ('B2', 12);
+insert into batch values ('B3', 8);
+
+insert into orders values ('O1', 2);
+insert into orders values ('O2', 8);
+insert into orders values ('O3', 2);
+insert into orders values ('O4', 5);
+insert into orders values ('O5', 9);
+insert into orders values ('O6', 5);
+
+select * from batch;
+select * from orders;
+
+
+/**SOLUTION**/
+
+with cte as (
+with recursive batch_split as 
+(
+select batch_id, 1 as quantity
+from batch
+union all 
+select b.batch_id, (a.quantity+1) as quantity
+from batch_split as a
+join batch as b on a.batch_id = b.batch_id and b.quantity > a.quantity
+)
+select batch_id, 1 as quantity, row_number() over(order by batch_id) as rn
+from batch_split
+order by 1,2
+)
+
+,df as (
+with recursive order_split as 
+(
+select order_number, 1 as quantity
+from orders
+union all 
+select b.order_number, (a.quantity+1) as quantity
+from order_split as a
+join orders as b on a.order_number = b.order_number and b.quantity > a.quantity
+)
+select order_number, 1 as quantity, row_number() over(order by order_number) as rn
+from order_split
+order by 1,2
+)
+
+select df.order_number, cte.batch_id, sum(df.quantity) as quantity
+from df
+left join cte on df.rn = cte.rn
+group by 1,2
+order by 1,2
